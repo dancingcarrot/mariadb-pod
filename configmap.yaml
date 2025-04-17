@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mariadb-config
+data:
+  init.sql: |
+    CREATE DATABASE IF NOT EXISTS sun;
+    USE sun;
+    CREATE TABLE IF NOT EXISTS board (
+      no INT AUTO_INCREMENT,
+      user_name VARCHAR(50),
+      title VARCHAR(225) NOT NULL,
+      contents VARCHAR(500),
+      reg_date DATETIME,
+      update_date DATETIME,
+      primary key(no)
+    );
