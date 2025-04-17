@@ -1,0 +1,26 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: mariadb-backup-cronjob
+spec:
+  schedule: "0 17 * * *"
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: backup-container
+            image: mariadb:10.7
+            command: ["/bin/sh"]
+            args: ["-c", "mysqldump -h mariadb-service -u root -p1234 sun > /data/tdb-$(date +%Y%m%d).sql"]
+            volumeMounts:
+              - name: mariadb-backup
+                mountPath: /data
+          restartPolicy: OnFailure
+          volumes:
+          - name: mariadb-backup
+            persistentVolumeClaim:
+              claimName: nfs-pvc
+
