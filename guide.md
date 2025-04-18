@@ -297,7 +297,16 @@ spec:
         requests:
           storage: 10Gi
 ```
-  
+
+```
+ubuntu@test-cluster-1:~/workspace/sun/sub$ kubectl get pods -n sun
+NAME        READY   STATUS    RESTARTS   AGE
+mariadb-0   1/1     Running   0          7s
+mariadb-1   1/1     Running   0          6s
+mariadb-2   1/1     Running   0          4s
+
+```
+
 </details>
 
 
