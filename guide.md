@@ -54,6 +54,20 @@ spec:
 
 ```
 
+```
+ubuntu@test-cluster-1:~/workspace/sun/sub$ kubectl apply -f pv.yaml -n sun 
+persistentvolume/nfs-pv created
+
+
+ubuntu@test-cluster-1:~/workspace/sun/sub$ kubectl get pv -n sun
+NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM                                      STORAGECLASS      VOLUMEATTRIBUTESCLASS   REASON   AGE
+jenkins-pv                                 8Gi        RWO            Delete           Available                                                                <unset>                          13d
+nfs-pv                                     10Gi       RWX            Retain           Available                                                                <unset>                          39s
+
+
+```
+
+
 ### <div id='1.3'> 1.3. pvc 생성
 
 ```
@@ -70,6 +84,16 @@ spec:
 
 ```
 
+```
+ubuntu@test-cluster-1:~/workspace/sun/sub$ kubectl apply -f pvc.yaml -n sun
+persistentvolumeclaim/nfs-pvc created
+
+ubuntu@test-cluster-1:~/workspace/sun/sub$ kubectl get pvc -n sun
+NAME      STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS      VOLUMEATTRIBUTESCLASS   AGE
+nfs-pvc   Bound    pvc-0ee91c0d-8c56-49dd-a287-ccefc677172e   10Gi       RWX            cp-storageclass   <unset>                 3s
+
+```
+
 ### <div id='1.4'> 1.4. secret 생성
 
 ```
@@ -80,6 +104,16 @@ metadata:
 type: Opaque
 data:
   password: MTIzNA==        
+```
+
+```
+ubuntu@test-cluster-1:~/workspace/sun/sub$ kubectl apply -f secret.yaml  -n sun
+secret/mariadb-secret created
+
+ubuntu@test-cluster-1:~/workspace/sun/sub$ kubectl get secret -n sun
+NAME             TYPE     DATA   AGE
+mariadb-secret   Opaque   1      4s
+
 ```
 
 ### <div id='1.5'> 1.5. configmap 생성
@@ -105,6 +139,18 @@ data:
 
 ```
 
+```
+ubuntu@test-cluster-1:~/workspace/sun/sub$ vi configmap.yaml
+ubuntu@test-cluster-1:~/workspace/sun/sub$ kubectl apply -f configmap.yaml -n sun
+configmap/mariadb-config created
+
+ubuntu@test-cluster-1:~/workspace/sun/sub$ kubectl get configmaps -n sun
+NAME               DATA   AGE
+kube-root-ca.crt   1      13d
+mariadb-config     1      8s
+
+```
+
 ### <div id='1.6'> 1.6. service 생성
 
 ```
@@ -123,6 +169,16 @@ spec:
   type: NodePort
 ```
 
+```
+ubuntu@test-cluster-1:~/workspace/sun/sub$ kubectl apply -f service.yaml -n sun
+service/mariadb-service created
+
+ubuntu@test-cluster-1:~/workspace/sun/sub$ kubectl get svc -n sun
+NAME              TYPE       CLUSTER-IP     EXTERNAL-IP   PORT(S)          AGE
+mariadb-service   NodePort   10.233.53.92   <none>        3306:30000/TCP   3s
+
+```
+
 ### <div id='1.7'> 1.7. deployment 생성
 
 ```
@@ -133,7 +189,7 @@ metadata:
   labels:
     app: mariadb
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: mariadb
@@ -171,10 +227,84 @@ spec:
 
 ```
 
+```
+ubuntu@test-cluster-1:~/workspace/sun/sub$ kubectl apply -f deployment.yaml  -n sun
+Warning: would violate PodSecurity "restricted:v1.30": allowPrivilegeEscalation != false (container "mariadb" must set securityContext.allowPrivilegeEscalation=false), unrestricted capabilities (container "mariadb" must set securityContext.capabilities.drop=["ALL"]), runAsNonRoot != true (pod or container "mariadb" must set securityContext.runAsNonRoot=true), seccompProfile (pod or container "mariadb" must set securityContext.seccompProfile.type to "RuntimeDefault" or "Localhost")
+deployment.apps/mariadb-deployment created
+
+ubuntu@test-cluster-1:~/workspace/sun/sub$ kubectl get pods -n sun
+NAME                                 READY   STATUS    RESTARTS   AGE
+mariadb-deployment-9c8f6758d-85f5q   1/1     Running   0          4s
+
+
+```
+<details>
+
+<summary>deployment에서 replicas를 3개로 지정한 후 배포후에 파드가 하나만 정상작동 할 경우</summary>
+
+```
+ubuntu@test-cluster-1:~$ kubectl get pods -n sun
+NAME                                 READY   STATUS             RESTARTS      AGE
+mariadb-deployment-9c8f6758d-7mlfn   0/1     CrashLoopBackOff   7 (42s ago)   16m
+mariadb-deployment-9c8f6758d-ff8nc   1/1     Running            0             16m
+mariadb-deployment-9c8f6758d-wqj89   0/1     CrashLoopBackOff   7 (56s ago)   16m
+```
+
+<br>
+여러 pod가 동일한 pvc를 공유할 경우, 데이터 디렉토리에서 충돌이 발생할 수 있다.
+Mariadb는 단일 인스턴스에서 데이터 디렉토리를 독점적으로 사용하도록 설계되어 있어, PVC를 공유하면 문제가 발생할 수 있다.
+
+* 해결방법
+  - PVC 분리: 각 MariaDB 파드가 독립적인 pvc를 사용하도록 설정한다. 이를 위해 statefulset 을 사용한다.
+
+```
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mariadb
+spec:
+  serviceName: mariadb
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mariadb
+  template:
+    metadata:
+      labels:
+        app: mariadb
+    spec:
+      containers:
+      - name: mariadb
+        image: mariadb:10.7
+        ports:
+        - containerPort: 3306
+          name: mariadb
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-secret
+              key: password
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/mysql
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+```
+  
+</details>
+
+
 ### <div id='1.8'> 1.8. cronjob 생성
 
 ```
-apiVersion: batch/v1beta1
+apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: mariadb-backup-cronjob
@@ -199,6 +329,18 @@ spec:
           - name: mariadb-backup
             persistentVolumeClaim:
               claimName: nfs-pvc
+
+```
+
+```
+ubuntu@test-cluster-1:~/workspace/sun/sub$ kubectl apply -f cronjob.yaml -n sun
+Warning: would violate PodSecurity "restricted:v1.30": allowPrivilegeEscalation != false (container "backup-container" must set securityContext.allowPrivilegeEscalation=false), unrestricted capabilities (container "backup-container" must set securityContext.capabilities.drop=["ALL"]), runAsNonRoot != true (pod or container "backup-container" must set securityContext.runAsNonRoot=true), seccompProfile (pod or container "backup-container" must set securityContext.seccompProfile.type to "RuntimeDefault" or "Localhost")
+cronjob.batch/mariadb-backup-cronjob created
+
+ubuntu@test-cluster-1:~/workspace/sun/sub$ kubectl get cronjob -n sun
+NAME                     SCHEDULE     TIMEZONE   SUSPEND   ACTIVE   LAST SCHEDULE   AGE
+mariadb-backup-cronjob   0 17 * * *   <none>     False     0        <none>          61s
+
 
 ```
 
