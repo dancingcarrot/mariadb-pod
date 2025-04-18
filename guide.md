@@ -11,7 +11,9 @@
   1.6. [service 생성](#1.6)<br>
   1.7. [pod 생성](#1.7)<br>
   1.8. [cronjob 생성](#1.8)<br>
-
+  
+2. [접속 확인](#2)<br>
+  2.1. [mysql 접속 확인](#2.1)<br>
 
 
 
@@ -351,4 +353,90 @@ mariadb-backup-cronjob   0 17 * * *   <none>     False     0        <none>      
 
 
 ```
+
+# <div id='2'> 2. 접속 확인
+
+### <div id='2.1'> 2.1. mysql 접속 
+
+pod 이름 확인
+
+```
+ubuntu@test-cluster-1:~$ kubectl get pods -n sun
+NAME                                 READY   STATUS    RESTARTS   AGE
+mariadb-deployment-9c8f6758d-w7jnr   1/1     Running   0          3m36s
+```
+<br>
+
+접속
+
+```
+ubuntu@test-cluster-1:~$ kubectl exec -it mariadb-deployment-9c8f6758d-w7jnr -n sun -- bash
+root@mariadb-deployment-9c8f6758d-w7jnr:/# mysql -u root -p
+Enter password: 
+Welcome to the MariaDB monitor.  Commands end with ; or \g.
+Your MariaDB connection id is 4
+Server version: 10.7.8-MariaDB-1:10.7.8+maria~ubu2004 mariadb.org binary distribution
+
+Copyright (c) 2000, 2018, Oracle, MariaDB Corporation Ab and others.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+MariaDB [(none)]> 
+```
+
+- mysql -u root -p 명령어 작성 후 secret에 작성한 비밀번호를 디코딩한 값을 넣는다 (1234)
+
+```
+MariaDB [(none)]> show databases;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| mysql              |
+| performance_schema |
+| sun                |
+| sys                |
++--------------------+
+5 rows in set (0.020 sec)
+
+MariaDB [(none)]> 
+MariaDB [(none)]> show tabels
+    -> ;
+ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'tabels' at line 1
+MariaDB [(none)]> 
+MariaDB [(none)]> 
+MariaDB [(none)]> 
+MariaDB [(none)]> 
+MariaDB [(none)]> 
+MariaDB [(none)]> 
+MariaDB [(none)]> show databases;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| mysql              |
+| performance_schema |
+| sun                |
+| sys                |
++--------------------+
+5 rows in set (0.001 sec)
+
+MariaDB [(none)]> use sun;
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+MariaDB [sun]> 
+MariaDB [sun]> show tables;
++---------------+
+| Tables_in_sun |
++---------------+
+| board         |
++---------------+
+1 row in set (0.001 sec)
+
+```
+
+
+
 
