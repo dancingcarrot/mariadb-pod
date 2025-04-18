@@ -61,7 +61,6 @@ persistentvolume/nfs-pv created
 
 ubuntu@test-cluster-1:~/workspace/sun/sub$ kubectl get pv -n sun
 NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM                                      STORAGECLASS      VOLUMEATTRIBUTESCLASS   REASON   AGE
-jenkins-pv                                 8Gi        RWO            Delete           Available                                                                <unset>                          13d
 nfs-pv                                     10Gi       RWX            Retain           Available                                                                <unset>                          39s
 
 
@@ -240,7 +239,7 @@ mariadb-deployment-9c8f6758d-85f5q   1/1     Running   0          4s
 ```
 <details>
 
-<summary>deployment에서 replicas를 3개로 지정한 후 배포후에 파드가 하나만 정상작동 할 경우</summary>
+<summary>deployment에서 replicas를 3개로 지정한 후 배포후에 모든 파드가 정상작동 하지 않을 경우</summary>
 
 ```
 ubuntu@test-cluster-1:~$ kubectl get pods -n sun
